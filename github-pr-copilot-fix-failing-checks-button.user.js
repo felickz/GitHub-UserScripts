@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         GitHub PR Copilot fix failing checks
+// @name         GitHub PR Copilot fix failing checks button
 // @author       felickz
 // @namespace    https://github.com/felickz
 // @version      0.1.2
@@ -8,11 +8,9 @@
 // @match        https://github.com/*/*/pull/*
 // @run-at       document-idle
 // @grant        none
-// @updateURL    https://gist.github.com/felickz/2fb77f443bb5b19ba078dbbdf6f721a8/raw/3010925f85cd781d32e84a66b5acbed47dae4115/GitHub%2520PR-%2520Ask%2520Copilot%2520to%2520Fix%2520Failing%2520Checks%2520(comment%2520button).user.js
-// @downloadURL  https://gist.github.com/felickz/2fb77f443bb5b19ba078dbbdf6f721a8/raw/3010925f85cd781d32e84a66b5acbed47dae4115/GitHub%2520PR-%2520Ask%2520Copilot%2520to%2520Fix%2520Failing%2520Checks%2520(comment%2520button).user.js
 // @icon         https://github.githubassets.com/pinned-octocat.svg
-// @updateURL    https://raw.githubusercontent.com/felickz/Github-UserScripts/main/github-pr-copilot-fix-failing-checks.user.js
-// @downloadURL  https://raw.githubusercontent.com/Mottie/Github-UserScripts/main/github-pr-copilot-fix-failing-checks.user.js
+// @updateURL    https://raw.githubusercontent.com/felickz/Github-UserScripts/main/github-pr-copilot-fix-failing-checks-button.user.js
+// @downloadURL  https://raw.githubusercontent.com/Mottie/Github-UserScripts/main/github-pr-copilot-fix-failing-checks-button.user.js
 // ==/UserScript==
 
 (function () {
