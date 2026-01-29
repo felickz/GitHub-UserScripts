@@ -20,7 +20,7 @@
   const DEBUG = true;
   const NS = '[COPILOT-FIX-CI]';
 
-  const MERGE_TEXTS = ['Merge pull request', 'Enable auto-merge', 'Enable auto-merge…', 'Auto-merge'];
+  const MERGE_TEXTS = ['Merge pull request', 'Enable auto-merge', 'Enable auto-merge…', 'Auto-merge', 'Squash and merge'];
 
   const log = (...a) => DEBUG && console.log(NS, ...a);
 
