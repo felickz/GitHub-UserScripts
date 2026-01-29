@@ -243,6 +243,7 @@
     'Enable auto-merge',
     'Enable auto-merge…',
     'Auto-merge',
+    'Squash and merge',
   ];
 
   function findMergeControlsLabelNode() {
