@@ -2,15 +2,15 @@
 // @name         GitHub PR Auto Approve Button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      1.3.0
+// @version      1.3.1
 // @license      MIT
 // @description  Adds an "AUTO-APPROVE" button next to Merge/Auto-merge controls; on click, navigates to Files changed and submits an approve review with a comment.
 // @match        https://github.com/*/*/pull/*
 // @run-at       document-idle
 // @grant        none
 // @icon         https://github.githubassets.com/pinned-octocat.svg
-// @updateURL    https://raw.githubusercontent.com/felickz/Github-UserScripts/main/github-pr-auto-approve-button.user.js
-// @downloadURL  https://raw.githubusercontent.com/Mottie/Github-UserScripts/main/github-pr-auto-approve-button.user.js
+// @updateURL    https://raw.githubusercontent.com/felickz/GitHub-UserScripts/main/github-pr-auto-approve-button.user.js
+// @downloadURL  https://raw.githubusercontent.com/felickz/GitHub-UserScripts/main/github-pr-auto-approve-button.user.js
 // ==/UserScript==
 
 (function () {
