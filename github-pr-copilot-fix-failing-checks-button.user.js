@@ -9,8 +9,8 @@
 // @run-at       document-idle
 // @grant        none
 // @icon         https://github.githubassets.com/pinned-octocat.svg
-// @updateURL    https://raw.githubusercontent.com/felickz/Github-UserScripts/main/github-pr-copilot-fix-failing-checks-button.user.js
-// @downloadURL  https://raw.githubusercontent.com/Mottie/Github-UserScripts/main/github-pr-copilot-fix-failing-checks-button.user.js
+// @updateURL    https://raw.githubusercontent.com/felickz/GitHub-UserScripts/main/github-pr-copilot-fix-failing-checks-button.user.js
+// @downloadURL  https://raw.githubusercontent.com/felickz/GitHub-UserScripts/main/github-pr-copilot-fix-failing-checks-button.user.js
 // ==/UserScript==
 
 (function () {
