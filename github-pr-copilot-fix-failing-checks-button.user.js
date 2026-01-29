@@ -2,7 +2,7 @@
 // @name         GitHub PR Copilot fix failing checks button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.1.2
+// @version      0.1.3
 // @license     MIT
 // @description  Adds a button near Merge/Auto-merge controls. On click: collects failing check run/job URLs and posts a comment to @copilot.
 // @match        https://github.com/*/*/pull/*
