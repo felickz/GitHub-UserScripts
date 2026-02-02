@@ -2,7 +2,7 @@
 // @name         GitHub PR Copilot fix failing checks button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.1.3
+// @version      0.1.4
 // @license     MIT
 // @description  Adds a button near Merge/Auto-merge controls. On click: collects failing check run/job URLs and posts a comment to @copilot.
 // @match        https://github.com/*/*/pull/*
@@ -20,7 +20,15 @@
   const DEBUG = true;
   const NS = '[COPILOT-FIX-CI]';
 
-  const MERGE_TEXTS = ['Merge pull request', 'Enable auto-merge', 'Enable auto-merge…', 'Auto-merge', 'Squash and merge'];
+  // Anchor text variants (merge box button text differs by repo/settings)
+  const MERGE_TEXTS = [
+    'Merge pull request',
+    'Enable auto-merge',
+    'Enable auto-merge…',
+    'Auto-merge',
+    'Squash and merge',
+    'Disable auto-merge',
+  ];
 
   const log = (...a) => DEBUG && console.log(NS, ...a);
 
