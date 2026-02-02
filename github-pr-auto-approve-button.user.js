@@ -2,7 +2,7 @@
 // @name         GitHub PR Auto Approve Button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.1.3
+// @version      0.1.4
 // @license      MIT
 // @description  Adds an "AUTO-APPROVE" button next to Merge/Auto-merge controls; on click, navigates to Files changed and submits an approve review with a comment.
 // @match        https://github.com/*/*/pull/*
@@ -19,6 +19,16 @@
   const COMMENT_TEXT = ':dependabot: :+1:';
   const MAX_WAIT_MS = 30000;
   const BUTTON_ID = 'tm-auto-approve-btn';
+
+  // Anchor text variants (merge box button text differs by repo/settings)
+  const MERGE_TEXTS = [
+    'Merge pull request',
+    'Enable auto-merge',
+    'Enable auto-merge…',
+    'Auto-merge',
+    'Squash and merge',
+    'Disable auto-merge',
+  ];
 
   const DEBUG = true;
   const NS = '[AUTO-APPROVE]';
@@ -236,16 +246,6 @@
     btn.addEventListener('click', () => runAutoApprove(btn));
     return btn;
   }
-
-  // Anchor text variants (merge box button text differs by repo/settings)
-  const MERGE_TEXTS = [
-    'Merge pull request',
-    'Enable auto-merge',
-    'Enable auto-merge…',
-    'Auto-merge',
-    'Squash and merge',
-    'Disable auto-merge',
-  ];
 
   function findMergeControlsLabelNode() {
     const nodes = Array.from(document.querySelectorAll('button, span, div'));
