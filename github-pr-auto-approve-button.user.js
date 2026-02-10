@@ -2,7 +2,7 @@
 // @name         GitHub PR Auto Approve Button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.1.4
+// @version      0.2.0
 // @license      MIT
 // @description  Adds an "AUTO-APPROVE" button next to Merge/Auto-merge controls; on click, navigates to Files changed and submits an approve review with a comment.
 // @match        https://github.com/*/*/pull/*
@@ -52,6 +52,16 @@
     throw new Error(`Timed out waiting for selector: ${selector}`);
   }
 
+  async function waitForElement(predicate, { timeoutMs = MAX_WAIT_MS, label = 'element' } = {}) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const el = predicate();
+      if (el) return el;
+      await sleep(150);
+    }
+    throw new Error(`Timed out waiting for ${label}`);
+  }
+
   function getPrNumberFromUrl() {
     const m = location.pathname.match(/\/pull\/(\d+)(\/|$)/);
     return m ? m[1] : null;
@@ -62,7 +72,7 @@
   }
 
   function isFilesChangedTab() {
-    return /\/pull\/\d+\/files/.test(location.pathname);
+    return /\/pull\/\d+\/(files|changes)/.test(location.pathname);
   }
 
   function isDependabotAuthor() {
@@ -163,29 +173,45 @@
   }
 
   async function openReviewChangesOverlay() {
-    await waitForSelector('span.js-review-changes, button.js-review-changes');
-    const el = document.querySelector('span.js-review-changes, button.js-review-changes');
+    // Try class-based selector first (legacy GitHub), then text-based fallback
+    let el = document.querySelector('span.js-review-changes, button.js-review-changes');
+    if (!el) {
+      el = await waitForElement(findReviewChangesButton, { label: 'Review changes button' });
+    }
     info('Review changes element:', el);
     el.click();
+    await sleep(500); // Wait for overlay/popover to open
   }
 
   async function fillAndApproveAndSubmit() {
     const textarea = await waitForSelector('#pull_request_review_body');
     textarea.focus();
-    textarea.value = COMMENT_TEXT;
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
 
-    const approveRadio = await waitForSelector('#pull_request_review\\[event\\]_approve');
+    // Use native setter for React-controlled textarea compatibility
+    const nativeSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLTextAreaElement.prototype, 'value'
+    )?.set;
+    if (nativeSetter) {
+      nativeSetter.call(textarea, COMMENT_TEXT);
+    } else {
+      textarea.value = COMMENT_TEXT;
+    }
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    textarea.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const approveRadio = await waitForSelector(
+      '#pull_request_review\\[event\\]_approve, input[name="pull_request_review\\[event\\]"][value="approve"]'
+    );
     approveRadio.click();
 
-    let submitBtn =
-      document.querySelector('#pull_requests_submit_review button[type="submit"]') ||
-      document.querySelector('form#pull_requests_submit_review button[type="submit"]') ||
-      document.querySelector('#pull_requests_submit_review button');
+    // Wait for submit button to become available (not just a snapshot query)
+    const submitBtn = await waitForSelector(
+      '#pull_requests_submit_review button[type="submit"], ' +
+      'form#pull_requests_submit_review button[type="submit"], ' +
+      '#pull_requests_submit_review button'
+    );
 
     info('Submit button:', submitBtn);
-    if (!submitBtn) throw new Error('Could not find submit review button.');
-
     submitBtn.click();
   }
 
@@ -256,34 +282,55 @@
     return null;
   }
 
+  function findReviewChangesButton() {
+    const byClass = document.querySelector('span.js-review-changes, button.js-review-changes');
+    if (byClass) return byClass;
+    const buttons = Array.from(document.querySelectorAll('button'));
+    return buttons.find(b => /^Review changes/.test((b.textContent || '').trim())) || null;
+  }
+
   function injectButtonIfPossible() {
     if (document.getElementById(BUTTON_ID)) return true;
 
+    // Strategy 1: Conversation tab – inject next to merge controls
     const labelNode = findMergeControlsLabelNode();
-    if (!labelNode) {
-      log('inject: merge/auto-merge label not found yet (looking for one of):', MERGE_TEXTS);
-      return false;
+    if (labelNode) {
+      const mergeGroup =
+        labelNode.closest('.prc-ButtonGroup-ButtonGroup-vFUrY') ||
+        labelNode.closest('[class*="ButtonGroup"]') ||
+        labelNode.closest('div');
+
+      if (!mergeGroup) {
+        warn('inject: found label node but could not find mergeGroup container.', labelNode);
+        return false;
+      }
+
+      const hostRow = mergeGroup.parentElement;
+      if (!hostRow) return false;
+
+      hostRow.insertBefore(createButton(), mergeGroup);
+      info('Injected AUTO-APPROVE button (merge controls). Matched label:', (labelNode.textContent || '').trim());
+      updateButtonColorFromChecks(document.getElementById(BUTTON_ID));
+      return true;
     }
 
-    const mergeGroup =
-      labelNode.closest('.prc-ButtonGroup-ButtonGroup-vFUrY') ||
-      labelNode.closest('[class*="ButtonGroup"]') ||
-      labelNode.closest('div');
-
-    if (!mergeGroup) {
-      warn('inject: found label node but could not find mergeGroup container.', labelNode);
-      return false;
+    // Strategy 2: Files changed tab – inject next to Review changes button
+    if (isFilesChangedTab()) {
+      const reviewBtn = findReviewChangesButton();
+      if (reviewBtn) {
+        const container = reviewBtn.parentElement;
+        if (container) {
+          const btn = createButton();
+          container.insertBefore(btn, reviewBtn);
+          info('Injected AUTO-APPROVE button (Review changes area).');
+          updateButtonColorFromChecks(btn);
+          return true;
+        }
+      }
     }
 
-    const hostRow = mergeGroup.parentElement;
-    if (!hostRow) return false;
-
-    hostRow.insertBefore(createButton(), mergeGroup);
-    info('Injected AUTO-APPROVE button. Matched label:', (labelNode.textContent || '').trim());
-
-    // Set color immediately after injection (merge box may already show checks)
-    updateButtonColorFromChecks(document.getElementById(BUTTON_ID));
-    return true;
+    log('inject: anchor element not found yet (looking for merge controls or Review changes button)');
+    return false;
   }
 
   function start() {
