@@ -2,7 +2,7 @@
 // @name         GitHub PR Auto Approve Button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.2.1
+// @version      0.2.2
 // @license      MIT
 // @description  Adds an "AUTO-APPROVE" button next to Merge/Auto-merge controls; on click, navigates to Files changed and submits an approve review with a comment.
 // @match        https://github.com/*/*/pull/*
@@ -300,45 +300,30 @@
   function injectButtonIfPossible() {
     if (document.getElementById(BUTTON_ID)) return true;
 
-    // Strategy 1: Conversation tab – inject next to merge controls
+    // Inject next to merge controls on the Conversation tab
     const labelNode = findMergeControlsLabelNode();
-    if (labelNode) {
-      const mergeGroup =
-        labelNode.closest('.prc-ButtonGroup-ButtonGroup-vFUrY') ||
-        labelNode.closest('[class*="ButtonGroup"]') ||
-        labelNode.closest('div');
-
-      if (!mergeGroup) {
-        warn('inject: found label node but could not find mergeGroup container.', labelNode);
-        return false;
-      }
-
-      const hostRow = mergeGroup.parentElement;
-      if (!hostRow) return false;
-
-      hostRow.insertBefore(createButton(), mergeGroup);
-      info('Injected AUTO-APPROVE button (merge controls). Matched label:', (labelNode.textContent || '').trim());
-      updateButtonColorFromChecks(document.getElementById(BUTTON_ID));
-      return true;
+    if (!labelNode) {
+      log('inject: merge/auto-merge label not found yet (looking for one of):', MERGE_TEXTS);
+      return false;
     }
 
-    // Strategy 2: Files changed tab – inject next to Review changes button
-    if (isFilesChangedTab()) {
-      const reviewBtn = findReviewChangesButton();
-      if (reviewBtn) {
-        const container = reviewBtn.parentElement;
-        if (container) {
-          const btn = createButton();
-          container.insertBefore(btn, reviewBtn);
-          info('Injected AUTO-APPROVE button (Review changes area).');
-          updateButtonColorFromChecks(btn);
-          return true;
-        }
-      }
+    const mergeGroup =
+      labelNode.closest('.prc-ButtonGroup-ButtonGroup-vFUrY') ||
+      labelNode.closest('[class*="ButtonGroup"]') ||
+      labelNode.closest('div');
+
+    if (!mergeGroup) {
+      warn('inject: found label node but could not find mergeGroup container.', labelNode);
+      return false;
     }
 
-    log('inject: anchor element not found yet (looking for merge controls or Review changes button)');
-    return false;
+    const hostRow = mergeGroup.parentElement;
+    if (!hostRow) return false;
+
+    hostRow.insertBefore(createButton(), mergeGroup);
+    info('Injected AUTO-APPROVE button. Matched label:', (labelNode.textContent || '').trim());
+    updateButtonColorFromChecks(document.getElementById(BUTTON_ID));
+    return true;
   }
 
   function start() {
