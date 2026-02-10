@@ -2,7 +2,7 @@
 // @name         GitHub PR Auto Approve Button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.2.5
+// @version      0.2.6
 // @license      MIT
 // @description  Adds an "AUTO-APPROVE" button next to Merge/Auto-merge controls; on click, navigates to Files changed and submits an approve review with a comment.
 // @match        https://github.com/*/*/pull/*
@@ -266,22 +266,27 @@
     await sleep(300); // let React state update
 
     // --- 3. Click the Submit review button ---
-    // IMPORTANT: Exclude the ReviewMenuButton (the toggle that opens/closes the overlay).
-    // The actual submit button is inside the overlay/popover form.
+    // IMPORTANT: Exclude the ReviewMenuButton toggle (opens/closes the overlay).
+    // The actual submit button class contains "SubmitReviewButton", while the
+    // toggle button class contains "__ReviewMenuButton__" (not "Submit").
     const submitBtn = await waitForElement(() => {
       // Legacy selector
       const legacy = document.querySelector('#pull_requests_submit_review button[type="submit"]');
       if (legacy) return legacy;
 
-      // Primer React: find button whose text is "Submit review" but is NOT the
-      // ReviewMenuButton overlay toggle (which also says "Submit review")
+      // Primer React: try the specific SubmitReviewButton class first
+      const byClass = document.querySelector('button[class*="SubmitReviewButton"]');
+      if (byClass) return byClass;
+
+      // Text-based fallback: find button whose text starts with "Submit review"
+      // but exclude the overlay toggle (class contains "__ReviewMenuButton__")
       const buttons = Array.from(document.querySelectorAll('button'));
       return buttons.find(b => {
         const t = (b.textContent || '').replace(/<!--.*?-->/g, '').trim();
-        if (!/^Submit\s*review$/i.test(t)) return false;
-        // Exclude the overlay toggle button
+        if (!/Submit\s*review/i.test(t)) return false;
         const cls = b.className || '';
-        if (cls.includes('ReviewMenuButton')) return false;
+        // Exclude the overlay toggle — its class has __ReviewMenuButton__ but NOT SubmitReviewButton
+        if (/ReviewMenuButton__(?!.*SubmitReviewButton)/.test(cls) && !cls.includes('SubmitReviewButton')) return false;
         return true;
       }) || null;
     }, { label: 'Submit review button (inside overlay)' });
