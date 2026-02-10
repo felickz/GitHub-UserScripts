@@ -2,7 +2,7 @@
 // @name         GitHub PR Auto Approve Button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.2.0
+// @version      0.2.1
 // @license      MIT
 // @description  Adds an "AUTO-APPROVE" button next to Merge/Auto-merge controls; on click, navigates to Files changed and submits an approve review with a comment.
 // @match        https://github.com/*/*/pull/*
@@ -283,10 +283,18 @@
   }
 
   function findReviewChangesButton() {
+    // Legacy GitHub class-based selector
     const byClass = document.querySelector('span.js-review-changes, button.js-review-changes');
     if (byClass) return byClass;
+    // Primer React ReviewMenuButton (current GitHub UI)
+    const byModuleClass = document.querySelector('button[class*="ReviewMenuButton"]');
+    if (byModuleClass) return byModuleClass;
+    // Text-based fallback: "Review changes" or "Submit review"
     const buttons = Array.from(document.querySelectorAll('button'));
-    return buttons.find(b => /^Review changes/.test((b.textContent || '').trim())) || null;
+    return buttons.find(b => {
+      const t = (b.textContent || '').replace(/<!--.*?-->/g, '').trim();
+      return /^(Review changes|Submit\s*review)/i.test(t);
+    }) || null;
   }
 
   function injectButtonIfPossible() {
