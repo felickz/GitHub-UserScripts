@@ -2,7 +2,7 @@
 // @name         GitHub PR Auto Approve Button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.2.6
+// @version      0.2.7
 // @license      MIT
 // @description  Adds an "AUTO-APPROVE" button next to Merge/Auto-merge controls; on click, navigates to Files changed and submits an approve review with a comment.
 // @match        https://github.com/*/*/pull/*
@@ -16,7 +16,12 @@
 (function () {
   'use strict';
 
-  const COMMENT_TEXT = ':dependabot: :+1:';
+  const COMMENT_TEXT_DEPENDABOT = ':dependabot: :+1:';
+  const COMMENT_TEXT_DEFAULT = ':octocat: :+1:';
+
+  function getCommentText() {
+    return isDependabotAuthor() ? COMMENT_TEXT_DEPENDABOT : COMMENT_TEXT_DEFAULT;
+  }
   const MAX_WAIT_MS = 30000;
   const BUTTON_ID = 'tm-auto-approve-btn';
   const STORAGE_KEY = 'tm-auto-approve-pending';
@@ -209,14 +214,17 @@
     info('Found textarea:', textarea);
     textarea.focus();
 
+    const commentText = getCommentText();
+    info('Comment text:', commentText);
+
     // Use native setter for React-controlled textarea compatibility
     const nativeSetter = Object.getOwnPropertyDescriptor(
       window.HTMLTextAreaElement.prototype, 'value'
     )?.set;
     if (nativeSetter) {
-      nativeSetter.call(textarea, COMMENT_TEXT);
+      nativeSetter.call(textarea, commentText);
     } else {
-      textarea.value = COMMENT_TEXT;
+      textarea.value = commentText;
     }
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
     textarea.dispatchEvent(new Event('change', { bubbles: true }));
