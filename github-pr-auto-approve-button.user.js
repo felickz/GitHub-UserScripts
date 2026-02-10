@@ -2,7 +2,7 @@
 // @name         GitHub PR Auto Approve Button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.2.3
+// @version      0.2.4
 // @license      MIT
 // @description  Adds an "AUTO-APPROVE" button next to Merge/Auto-merge controls; on click, navigates to Files changed and submits an approve review with a comment.
 // @match        https://github.com/*/*/pull/*
@@ -198,7 +198,15 @@
   }
 
   async function fillAndApproveAndSubmit() {
-    const textarea = await waitForSelector('#pull_request_review_body');
+    // --- 1. Fill the comment textarea ---
+    // New Primer React UI uses dynamic IDs; match by placeholder or class instead.
+    const textarea = await waitForElement(() => {
+      return document.querySelector('textarea[placeholder="Leave a comment"]') ||
+             document.querySelector('textarea.prc-Textarea-TextArea-snlco') ||
+             document.querySelector('#pull_request_review_body'); // legacy fallback
+    }, { label: 'review comment textarea' });
+
+    info('Found textarea:', textarea);
     textarea.focus();
 
     // Use native setter for React-controlled textarea compatibility
@@ -212,18 +220,48 @@
     }
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
     textarea.dispatchEvent(new Event('change', { bubbles: true }));
+    info('Filled comment text.');
 
-    const approveRadio = await waitForSelector(
-      '#pull_request_review\\[event\\]_approve, input[name="pull_request_review\\[event\\]"][value="approve"]'
-    );
+    // --- 2. Click the Approve radio ---
+    const approveRadio = await waitForElement(() => {
+      // Legacy selector
+      const legacy = document.querySelector(
+        'input[name="pull_request_review[event]"][value="approve"]'
+      );
+      if (legacy) return legacy;
+
+      // Primer React: find radio/label whose text starts with "Approve"
+      const labels = Array.from(document.querySelectorAll('label, span, div'));
+      for (const lbl of labels) {
+        const t = (lbl.textContent || '').trim();
+        if (/^Approve\b/i.test(t)) {
+          // The label itself may be clickable, or it wraps an <input type="radio">
+          const radio = lbl.querySelector('input[type="radio"]') || lbl.closest('label')?.querySelector('input[type="radio"]');
+          if (radio) return radio;
+          // If there's no <input>, the label/span itself may act as the clickable element
+          return lbl;
+        }
+      }
+      return null;
+    }, { label: 'Approve radio button' });
+
+    info('Found approve radio:', approveRadio);
     approveRadio.click();
+    await sleep(300); // let React state update
 
-    // Wait for submit button to become available (not just a snapshot query)
-    const submitBtn = await waitForSelector(
-      '#pull_requests_submit_review button[type="submit"], ' +
-      'form#pull_requests_submit_review button[type="submit"], ' +
-      '#pull_requests_submit_review button'
-    );
+    // --- 3. Click the Submit review button ---
+    const submitBtn = await waitForElement(() => {
+      // Legacy selector
+      const legacy = document.querySelector('#pull_requests_submit_review button[type="submit"]');
+      if (legacy) return legacy;
+
+      // Primer React: find button whose text is "Submit review" inside the review overlay
+      const buttons = Array.from(document.querySelectorAll('button'));
+      return buttons.find(b => {
+        const t = (b.textContent || '').replace(/<!--.*?-->/g, '').trim();
+        return /^Submit\s*review$/i.test(t);
+      }) || null;
+    }, { label: 'Submit review button' });
 
     info('Submit button:', submitBtn);
     submitBtn.click();
