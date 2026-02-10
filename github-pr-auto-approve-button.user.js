@@ -2,7 +2,7 @@
 // @name         GitHub PR Auto Approve Button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.2.2
+// @version      0.2.3
 // @license      MIT
 // @description  Adds an "AUTO-APPROVE" button next to Merge/Auto-merge controls; on click, navigates to Files changed and submits an approve review with a comment.
 // @match        https://github.com/*/*/pull/*
@@ -19,6 +19,7 @@
   const COMMENT_TEXT = ':dependabot: :+1:';
   const MAX_WAIT_MS = 30000;
   const BUTTON_ID = 'tm-auto-approve-btn';
+  const STORAGE_KEY = 'tm-auto-approve-pending';
 
   // Anchor text variants (merge box button text differs by repo/settings)
   const MERGE_TEXTS = [
@@ -150,6 +151,12 @@
 
     if (isFilesChangedTab()) return;
 
+    // Store intent so we can resume after page navigation
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+      prUrl: location.href,
+      timestamp: Date.now(),
+    }));
+
     const tab =
       document.querySelector('a[data-tab-item="i2files-tab"]') ||
       document.querySelector('a#files-tab') ||
@@ -161,15 +168,22 @@
       tab.click();
       const start = Date.now();
       while (Date.now() - start < MAX_WAIT_MS) {
-        if (isFilesChangedTab()) return;
+        if (isFilesChangedTab()) {
+          // SPA navigation worked, clear the storage flag and continue in-process
+          sessionStorage.removeItem(STORAGE_KEY);
+          return;
+        }
         await sleep(100);
       }
     }
 
+    // Full page navigation fallback — script will resume via checkPendingAutoApprove()
     const prNumber = getPrNumberFromUrl();
     if (!prNumber) throw new Error('Could not determine PR number from URL.');
     const base = location.origin + location.pathname.replace(/\/pull\/\d+.*/, `/pull/${prNumber}`);
     location.assign(base + '/files');
+    // Script execution ends here; will resume on page load
+    await new Promise(() => {}); // hang forever (page is navigating away)
   }
 
   async function openReviewChangesOverlay() {
@@ -327,7 +341,11 @@
   }
 
   function start() {
-    info('Loaded on', location.href);
+    const version = (typeof GM_info !== 'undefined') ? GM_info.script.version : 'unknown';
+    info(`v${version} loaded on`, location.href);
+
+    // Check if we need to resume a pending auto-approve after page navigation
+    checkPendingAutoApprove();
 
     // Poll because merge/auto-merge box and checks appear late.
     let tries = 0;
@@ -378,6 +396,44 @@
         checks: getChecksSummaryFromDOM(),
       }),
     };
+  }
+
+  async function checkPendingAutoApprove() {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+
+    try {
+      const pending = JSON.parse(raw);
+      // Expire after 60 seconds to avoid stale auto-approves
+      if (Date.now() - pending.timestamp > 60000) {
+        info('Pending auto-approve expired, clearing.');
+        sessionStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+
+      if (!isFilesChangedTab()) {
+        info('Pending auto-approve found but not on files changed tab, ignoring.');
+        return;
+      }
+
+      info('Resuming pending auto-approve after page navigation...');
+      sessionStorage.removeItem(STORAGE_KEY);
+
+      // Wait for the page to settle
+      await sleep(2000);
+
+      info('Opening Review changes overlay...');
+      await openReviewChangesOverlay();
+
+      info('Filling and submitting approval...');
+      await fillAndApproveAndSubmit();
+
+      info('Auto-approve completed successfully after resume!');
+    } catch (e) {
+      err('Error resuming auto-approve:', e);
+      sessionStorage.removeItem(STORAGE_KEY);
+      alert(`AUTO-APPROVE failed after navigation: ${e?.message || e}`);
+    }
   }
 
   setTimeout(start, 800);
