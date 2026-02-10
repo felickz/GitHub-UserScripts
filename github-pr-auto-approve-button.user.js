@@ -2,7 +2,7 @@
 // @name         GitHub PR Auto Approve Button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.2.4
+// @version      0.2.5
 // @license      MIT
 // @description  Adds an "AUTO-APPROVE" button next to Merge/Auto-merge controls; on click, navigates to Files changed and submits an approve review with a comment.
 // @match        https://github.com/*/*/pull/*
@@ -230,17 +230,33 @@
       );
       if (legacy) return legacy;
 
-      // Primer React: find radio/label whose text starts with "Approve"
-      const labels = Array.from(document.querySelectorAll('label, span, div'));
-      for (const lbl of labels) {
-        const t = (lbl.textContent || '').trim();
-        if (/^Approve\b/i.test(t)) {
-          // The label itself may be clickable, or it wraps an <input type="radio">
-          const radio = lbl.querySelector('input[type="radio"]') || lbl.closest('label')?.querySelector('input[type="radio"]');
-          if (radio) return radio;
-          // If there's no <input>, the label/span itself may act as the clickable element
-          return lbl;
+      // Primer React: find the "Approve" text, then walk up to find the
+      // actual <input type="radio"> or the clickable <label> container.
+      const spans = Array.from(document.querySelectorAll('span.text-bold, span[class*="text-bold"]'));
+      for (const span of spans) {
+        const t = (span.textContent || '').trim();
+        if (!/^Approve$/i.test(t)) continue;
+
+        // Walk up ancestors looking for a <label> that contains an <input type="radio">
+        let ancestor = span.parentElement;
+        for (let i = 0; i < 5 && ancestor; i++) {
+          const radio = ancestor.querySelector('input[type="radio"]');
+          if (radio) {
+            info('Found actual radio input near "Approve" span:', radio);
+            return radio;
+          }
+          // If the ancestor itself is a label, clicking it should toggle the radio
+          if (ancestor.tagName === 'LABEL') {
+            info('Found <label> ancestor for "Approve":', ancestor);
+            return ancestor;
+          }
+          ancestor = ancestor.parentElement;
         }
+
+        // Last resort: click the container div/span that holds the approve option
+        // (some React UIs handle click on the container)
+        const container = span.closest('[role="radio"], [role="option"], label, [data-value="approve"]');
+        if (container) return container;
       }
       return null;
     }, { label: 'Approve radio button' });
@@ -250,18 +266,25 @@
     await sleep(300); // let React state update
 
     // --- 3. Click the Submit review button ---
+    // IMPORTANT: Exclude the ReviewMenuButton (the toggle that opens/closes the overlay).
+    // The actual submit button is inside the overlay/popover form.
     const submitBtn = await waitForElement(() => {
       // Legacy selector
       const legacy = document.querySelector('#pull_requests_submit_review button[type="submit"]');
       if (legacy) return legacy;
 
-      // Primer React: find button whose text is "Submit review" inside the review overlay
+      // Primer React: find button whose text is "Submit review" but is NOT the
+      // ReviewMenuButton overlay toggle (which also says "Submit review")
       const buttons = Array.from(document.querySelectorAll('button'));
       return buttons.find(b => {
         const t = (b.textContent || '').replace(/<!--.*?-->/g, '').trim();
-        return /^Submit\s*review$/i.test(t);
+        if (!/^Submit\s*review$/i.test(t)) return false;
+        // Exclude the overlay toggle button
+        const cls = b.className || '';
+        if (cls.includes('ReviewMenuButton')) return false;
+        return true;
       }) || null;
-    }, { label: 'Submit review button' });
+    }, { label: 'Submit review button (inside overlay)' });
 
     info('Submit button:', submitBtn);
     submitBtn.click();
