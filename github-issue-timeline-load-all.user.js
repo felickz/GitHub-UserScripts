@@ -2,7 +2,7 @@
 // @name         GitHub Issue Timeline Load All
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.1.0
+// @version      0.1.1
 // @license      MIT
 // @description  Adds a "Load All" button next to GitHub's "Load more" on issue/PR timelines. Intercepts the GraphQL pagination request to set the count equal to the remaining items, and auto-retries until all history is loaded.
 // @match        https://github.com/*/*/issues/*
@@ -21,6 +21,7 @@
   const NS = '[LOAD-ALL-TIMELINE]';
   const DEBUG = true;
   const DEFAULT_BATCH_SIZE = 150;
+  const MAX_GRAPHQL_COUNT = 250; // GitHub API hard limit on `first`
   const MAX_RETRY_ITERATIONS = 50;
   const MAX_RETRY_TOTAL_MS = 120_000; // 2 minutes hard stop
   const POLL_AFTER_CLICK_MS = 2000; // wait for DOM to settle after each click
@@ -58,9 +59,10 @@
           if (bodyParam) {
             const body = JSON.parse(bodyParam);
             const originalCount = body.variables?.count;
-            body.variables.count = pendingLoadAllCount;
+            const requestCount = Math.min(pendingLoadAllCount, MAX_GRAPHQL_COUNT);
+            body.variables.count = requestCount;
             log(
-              `Intercepted GraphQL request: count ${originalCount} → ${pendingLoadAllCount}`
+              `Intercepted GraphQL request: count ${originalCount} → ${requestCount} (requested ${pendingLoadAllCount}, capped at ${MAX_GRAPHQL_COUNT})`
             );
             url.searchParams.set('body', JSON.stringify(body));
             pendingLoadAllCount = 0; // consume the flag
