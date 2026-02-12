@@ -2,7 +2,7 @@
 // @name         GitHub Issue Timeline Load All
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.1.1
+// @version      0.1.2
 // @license      MIT
 // @description  Adds a "Load All" button next to GitHub's "Load more" on issue/PR timelines. Intercepts the GraphQL pagination request to set the count equal to the remaining items, and auto-retries until all history is loaded.
 // @match        https://github.com/*/*/issues/*
@@ -33,6 +33,9 @@
   // Module-level flag: when set to a positive number, the fetch interceptor
   // will override the `count` variable in the next matching GraphQL request.
   let pendingLoadAllCount = 0;
+
+  // Suppress MutationObserver re-injection while a Load All operation is active
+  let isLoadingAll = false;
 
   // ─── Logging helpers ────────────────────────────────────────────────
   const log = (...a) => DEBUG && console.log(NS, ...a);
@@ -180,6 +183,7 @@
   async function handleLoadAll(position, loadAllBtn) {
     const startTime = Date.now();
     let iteration = 0;
+    isLoadingAll = true;
     loadAllBtn.disabled = true;
     loadAllBtn.style.opacity = '0.7';
     loadAllBtn.style.cursor = 'wait';
@@ -261,6 +265,8 @@
       loadAllBtn.disabled = false;
       loadAllBtn.style.opacity = '1';
       loadAllBtn.style.cursor = 'pointer';
+    } finally {
+      isLoadingAll = false;
     }
   }
 
@@ -269,6 +275,7 @@
   function injectLoadAllButton(button, position) {
     const btnId = `${BUTTON_ID_PREFIX}${position}`;
     if (document.getElementById(btnId)) return; // already injected
+    if (isLoadingAll) return; // suppress re-injection during active Load All
 
     const remaining = getRemainingCount(position);
     log(`Found "Load more" (${position}), remaining: ${remaining}`);
