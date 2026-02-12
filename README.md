@@ -22,7 +22,9 @@ A collection of UserScripts to enhance the GitHub experience
 	|----------------------------------------|:------------------:|:-------------------------:|:----------:|:----------:|
 	| [GitHub PR Auto Approve Button](/github-pr-auto-approve-button.user.js)         |   [install][gh-pr-auto-approve-button-raw] | <!--[GF][ccr-gf] [OU][ccr-ou]--> | 2026.01.28 | 2026.01.28 |
 	| [GitHub PR Copilot Fix Failing Checks Button](./github-pr-copilot-fix-failing-checks-button.user.js)        |   [install][gh-pr-coilot-fix-failing-checks-button-raw] | <!--[GF][cfd-gf] [OU][cfd-ou]--> | 2026.01.28 | 2026.01.28 |
+	| [GitHub Issue Timeline Load All](./github-issue-timeline-load-all.user.js)        |   [install][gh-issue-timeline-load-all-raw] | <!--[GF][cfd-gf] [OU][cfd-ou]--> | 2026.02.12 | 2026.02.12 |
 
 
 [gh-pr-auto-approve-button-raw]: https://raw.githubusercontent.com/felickz/GitHub-UserScripts/main/github-pr-auto-approve-button.user.js
 [gh-pr-coilot-fix-failing-checks-button-raw]: https://raw.githubusercontent.com/felickz/GitHub-UserScripts/main/github-pr-copilot-fix-failing-checks-button.user.js
+[gh-issue-timeline-load-all-raw]: https://raw.githubusercontent.com/felickz/GitHub-UserScripts/main/github-issue-timeline-load-all.user.js
