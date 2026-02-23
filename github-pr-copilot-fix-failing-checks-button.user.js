@@ -2,7 +2,7 @@
 // @name         GitHub PR Copilot fix failing checks button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.1.5
+// @version      0.1.6
 // @license     MIT
 // @description  Adds a button near Merge/Auto-merge controls. On click: collects failing check run/job URLs and posts a comment to @copilot.
 // @match        https://github.com/*/*/pull/*
@@ -102,23 +102,44 @@
     return null;
   }
 
+  function findMergeControlsGroup() {
+    const textSpans = Array.from(
+      document.querySelectorAll('span[data-component="text"], span.prc-Button-Label-FWkx3')
+    );
+    for (const span of textSpans) {
+      const t = (span.textContent || '').trim();
+      if (!MERGE_TEXTS.includes(t)) continue;
+      const button = span.closest('button');
+      const group = button?.closest('div[class*="ButtonGroup"], .prc-ButtonGroup-ButtonGroup-vFUrY');
+      if (group) return { group, labelNode: span };
+    }
+
+    const buttons = Array.from(document.querySelectorAll('button'));
+    for (const button of buttons) {
+      const t = (button.textContent || '').trim();
+      if (!MERGE_TEXTS.includes(t)) continue;
+      const group = button.closest('div[class*="ButtonGroup"], .prc-ButtonGroup-ButtonGroup-vFUrY');
+      if (group) return { group, labelNode: button };
+    }
+
+    const labelNode = findMergeControlsLabelNode();
+    const group = labelNode?.closest('div[class*="ButtonGroup"], .prc-ButtonGroup-ButtonGroup-vFUrY');
+    if (group) return { group, labelNode };
+
+    return { group: null, labelNode: null };
+  }
+
   function injectButtonIfPossible() {
     if (document.getElementById(BUTTON_ID)) return true;
 
-    const labelNode = findMergeControlsLabelNode();
-    if (!labelNode) return false;
-
-    const mergeGroup =
-      labelNode.closest('.prc-ButtonGroup-ButtonGroup-vFUrY') ||
-      labelNode.closest('[class*="ButtonGroup"]') ||
-      labelNode.closest('div');
-
+    const { group: mergeGroup, labelNode } = findMergeControlsGroup();
     if (!mergeGroup) return false;
 
     const hostRow = mergeGroup.parentElement;
     if (!hostRow) return false;
 
     hostRow.insertBefore(createButton(), mergeGroup);
+    log('Injected ASK COPILOT button. Matched label:', (labelNode?.textContent || '').trim());
     return true;
   }
 

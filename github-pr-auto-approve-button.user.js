@@ -2,7 +2,7 @@
 // @name         GitHub PR Auto Approve Button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.2.7
+// @version      0.2.8
 // @license      MIT
 // @description  Adds an "AUTO-APPROVE" button next to Merge/Auto-merge controls; on click, navigates to Files changed and submits an approve review with a comment.
 // @match        https://github.com/*/*/pull/*
@@ -139,15 +139,22 @@
     if (!btn) return;
 
     const summary = getChecksSummaryFromDOM();
+    const prevColor = btn.dataset.tmColor || null;
     if (summary.status === 'failing') {
       applyButtonColor(btn, 'red', summary.matched);
-      log('Button color -> RED (failing checks). Matched:', summary.matched);
+      if (prevColor !== 'red') {
+        log('Button color -> RED (failing checks). Matched:', summary.matched);
+      }
     } else if (summary.status === 'neutral') {
       applyButtonColor(btn, 'yellow', summary.matched);
-      log('Button color -> YELLOW (neutral checks). Matched:', summary.matched);
+      if (prevColor !== 'yellow') {
+        log('Button color -> YELLOW (neutral checks). Matched:', summary.matched);
+      }
     } else {
       applyButtonColor(btn, 'gray', 'no failing/neutral checks label found');
-      log('Button color -> GRAY (default/unknown).');
+      if (prevColor !== 'gray') {
+        log('Button color -> GRAY (default/unknown).');
+      }
     }
   }
 
@@ -370,6 +377,33 @@
     return null;
   }
 
+  function findMergeControlsGroup() {
+    const textSpans = Array.from(
+      document.querySelectorAll('span[data-component="text"], span.prc-Button-Label-FWkx3')
+    );
+    for (const span of textSpans) {
+      const t = (span.textContent || '').trim();
+      if (!MERGE_TEXTS.includes(t)) continue;
+      const button = span.closest('button');
+      const group = button?.closest('div[class*="ButtonGroup"], .prc-ButtonGroup-ButtonGroup-vFUrY');
+      if (group) return { group, labelNode: span };
+    }
+
+    const buttons = Array.from(document.querySelectorAll('button'));
+    for (const button of buttons) {
+      const t = (button.textContent || '').trim();
+      if (!MERGE_TEXTS.includes(t)) continue;
+      const group = button.closest('div[class*="ButtonGroup"], .prc-ButtonGroup-ButtonGroup-vFUrY');
+      if (group) return { group, labelNode: button };
+    }
+
+    const labelNode = findMergeControlsLabelNode();
+    const group = labelNode?.closest('div[class*="ButtonGroup"], .prc-ButtonGroup-ButtonGroup-vFUrY');
+    if (group) return { group, labelNode };
+
+    return { group: null, labelNode: null };
+  }
+
   function findReviewChangesButton() {
     // Legacy GitHub class-based selector
     const byClass = document.querySelector('span.js-review-changes, button.js-review-changes');
@@ -389,24 +423,17 @@
     if (document.getElementById(BUTTON_ID)) return true;
 
     // Inject next to merge controls on the Conversation tab
-    const labelNode = findMergeControlsLabelNode();
-    if (!labelNode) {
+    const { group: mergeGroup, labelNode } = findMergeControlsGroup();
+    if (!mergeGroup) {
       log('inject: merge/auto-merge label not found yet (looking for one of):', MERGE_TEXTS);
       return false;
     }
 
-    const mergeGroup =
-      labelNode.closest('.prc-ButtonGroup-ButtonGroup-vFUrY') ||
-      labelNode.closest('[class*="ButtonGroup"]') ||
-      labelNode.closest('div');
-
-    if (!mergeGroup) {
-      warn('inject: found label node but could not find mergeGroup container.', labelNode);
+    const hostRow = mergeGroup.parentElement;
+    if (!hostRow) {
+      warn('inject: merge group has no parentElement.', mergeGroup);
       return false;
     }
-
-    const hostRow = mergeGroup.parentElement;
-    if (!hostRow) return false;
 
     hostRow.insertBefore(createButton(), mergeGroup);
     info('Injected AUTO-APPROVE button. Matched label:', (labelNode.textContent || '').trim());
