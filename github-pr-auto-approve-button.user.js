@@ -424,13 +424,18 @@
     }) || null;
   }
 
+  let _loggedNotFound = false;
+
   function injectButtonIfPossible() {
     if (document.getElementById(BUTTON_ID)) return true;
 
     // Inject next to merge controls on the Conversation tab
     const { group: mergeGroup, labelNode } = findMergeControlsGroup();
     if (!mergeGroup) {
-      log('inject: merge/auto-merge label not found yet (looking for prefix match on):', MERGE_TEXTS);
+      if (!_loggedNotFound) {
+        log('inject: merge/auto-merge label not found yet (looking for prefix match on):', MERGE_TEXTS);
+        _loggedNotFound = true;
+      }
       return false;
     }
 
@@ -459,6 +464,7 @@
       return;
     }
 
+    _loggedNotFound = false;
     log('Starting injection on PR page:', location.href);
 
     // Poll because merge/auto-merge box and checks appear late.
@@ -486,10 +492,9 @@
     }, 500);
 
     _injectionObserver = new MutationObserver(() => {
-      const injected = injectButtonIfPossible();
+      injectButtonIfPossible();
       const btn = document.getElementById(BUTTON_ID);
       if (btn) updateButtonColorFromChecks(btn);
-      if (injected) log('observer: injected or updated');
     });
     _injectionObserver.observe(document.documentElement, { childList: true, subtree: true });
   }
