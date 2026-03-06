@@ -2,10 +2,10 @@
 // @name         GitHub PR Auto Approve Button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.2.9
+// @version      0.3.0
 // @license      MIT
 // @description  Adds an "AUTO-APPROVE" button next to Merge/Auto-merge controls; on click, navigates to Files changed and submits an approve review with a comment.
-// @match        https://github.com/*/*/pull/*
+// @match        https://github.com/*
 // @run-at       document-idle
 // @grant        none
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -446,16 +446,24 @@
     return true;
   }
 
-  function start() {
-    const version = (typeof GM_info !== 'undefined') ? GM_info.script.version : 'unknown';
-    info(`v${version} loaded on`, location.href);
+  // Track injection state for cleanup between SPA navigations
+  let _injectionPoll = null;
+  let _injectionObserver = null;
 
-    // Check if we need to resume a pending auto-approve after page navigation
-    checkPendingAutoApprove();
+  function startInjection() {
+    // Clean up any previous injection cycle
+    if (_injectionPoll) { clearInterval(_injectionPoll); _injectionPoll = null; }
+    if (_injectionObserver) { _injectionObserver.disconnect(); _injectionObserver = null; }
+
+    if (!isPullRequestPage()) {
+      return;
+    }
+
+    log('Starting injection on PR page:', location.href);
 
     // Poll because merge/auto-merge box and checks appear late.
     let tries = 0;
-    const poll = setInterval(() => {
+    _injectionPoll = setInterval(() => {
       tries += 1;
 
       const injected = injectButtonIfPossible();
@@ -467,19 +475,43 @@
         // Keep polling a bit longer to catch checks rendering, then stop.
         // (MutationObserver will still handle subsequent DOM changes.)
         // ~5s after injection
-        clearInterval(poll);
+        clearInterval(_injectionPoll);
+        _injectionPoll = null;
       }
 
-      if (tries > 120) clearInterval(poll); // ~60s hard stop
+      if (tries > 120) {
+        clearInterval(_injectionPoll); // ~60s hard stop
+        _injectionPoll = null;
+      }
     }, 500);
 
-    const obs = new MutationObserver(() => {
+    _injectionObserver = new MutationObserver(() => {
       const injected = injectButtonIfPossible();
       const btn = document.getElementById(BUTTON_ID);
       if (btn) updateButtonColorFromChecks(btn);
       if (injected) log('observer: injected or updated');
     });
-    obs.observe(document.documentElement, { childList: true, subtree: true });
+    _injectionObserver.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  function start() {
+    if (!isPullRequestPage()) {
+      // Not a PR page on initial load — just set up SPA navigation listeners
+      setupSpaListeners();
+      return;
+    }
+
+    const version = (typeof GM_info !== 'undefined') ? GM_info.script.version : 'unknown';
+    info(`v${version} loaded on`, location.href);
+
+    // Check if we need to resume a pending auto-approve after page navigation
+    checkPendingAutoApprove();
+
+    // Initial injection attempt
+    startInjection();
+
+    // Set up SPA navigation listeners
+    setupSpaListeners();
 
     // Console helper
     window.__autoApprove = {
@@ -502,6 +534,33 @@
         checks: getChecksSummaryFromDOM(),
       }),
     };
+  }
+
+  function setupSpaListeners() {
+    // Re-trigger on SPA navigation (GitHub uses Turbo/pjax)
+    document.addEventListener('turbo:load', () => {
+      if (!isPullRequestPage()) return;
+      info('SPA navigation (turbo:load) to PR page');
+      checkPendingAutoApprove();
+      startInjection();
+    });
+    document.addEventListener('turbo:render', () => {
+      if (!isPullRequestPage()) return;
+      info('SPA render (turbo:render) on PR page');
+      startInjection();
+    });
+
+    // Fallback: detect URL changes via polling (in case Turbo events don't fire)
+    let lastUrl = location.href;
+    setInterval(() => {
+      if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        if (!isPullRequestPage()) return;
+        info('URL changed (poll fallback) to PR page');
+        checkPendingAutoApprove();
+        startInjection();
+      }
+    }, 1000);
   }
 
   async function checkPendingAutoApprove() {

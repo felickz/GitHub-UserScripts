@@ -2,10 +2,10 @@
 // @name         GitHub PR Copilot fix failing checks button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.1.7
+// @version      0.2.0
 // @license     MIT
 // @description  Adds a button near Merge/Auto-merge controls. On click: collects failing check run/job URLs and posts a comment to @copilot.
-// @match        https://github.com/*/*/pull/*
+// @match        https://github.com/*
 // @run-at       document-idle
 // @grant        none
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -233,25 +233,85 @@
     btn.style.opacity = '1';
   }
 
+  function isPullRequestPage() {
+    return /\/pull\/\d+/.test(location.pathname);
+  }
+
+  // Track injection state for cleanup between SPA navigations
+  let _injectionPoll = null;
+  let _injectionObserver = null;
+
+  function startInjection() {
+    // Clean up any previous injection cycle
+    if (_injectionPoll) { clearInterval(_injectionPoll); _injectionPoll = null; }
+    if (_injectionObserver) { _injectionObserver.disconnect(); _injectionObserver = null; }
+
+    if (!isPullRequestPage()) {
+      return;
+    }
+
+    log('Starting injection on PR page:', location.href);
+
+    let tries = 0;
+    _injectionPoll = setInterval(() => {
+      tries += 1;
+      const ok = injectButtonIfPossible();
+      if (ok || tries > 120) {
+        clearInterval(_injectionPoll);
+        _injectionPoll = null;
+      }
+    }, 500);
+
+    _injectionObserver = new MutationObserver(() => injectButtonIfPossible());
+    _injectionObserver.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
   function start() {
+    if (!isPullRequestPage()) {
+      // Not a PR page on initial load — just set up SPA navigation listeners
+      setupSpaListeners();
+      return;
+    }
+
     const version = (typeof GM_info !== 'undefined') ? GM_info.script.version : 'unknown';
     log(`v${version} loaded on`, location.href);
 
-    let tries = 0;
-    const poll = setInterval(() => {
-      tries += 1;
-      const ok = injectButtonIfPossible();
-      if (ok || tries > 120) clearInterval(poll);
-    }, 500);
+    // Initial injection attempt
+    startInjection();
 
-    const obs = new MutationObserver(() => injectButtonIfPossible());
-    obs.observe(document.documentElement, { childList: true, subtree: true });
+    // Set up SPA navigation listeners
+    setupSpaListeners();
 
     window.__copilotFixCI = {
       group: () => getFailingChecksGroup(),
       urls: () => collectFailingCheckUrls(),
       comment: () => buildComment(collectFailingCheckUrls()),
     };
+  }
+
+  function setupSpaListeners() {
+    // Re-trigger on SPA navigation (GitHub uses Turbo/pjax)
+    document.addEventListener('turbo:load', () => {
+      if (!isPullRequestPage()) return;
+      log('SPA navigation (turbo:load) to PR page');
+      startInjection();
+    });
+    document.addEventListener('turbo:render', () => {
+      if (!isPullRequestPage()) return;
+      log('SPA render (turbo:render) on PR page');
+      startInjection();
+    });
+
+    // Fallback: detect URL changes via polling (in case Turbo events don't fire)
+    let lastUrl = location.href;
+    setInterval(() => {
+      if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        if (!isPullRequestPage()) return;
+        log('URL changed (poll fallback) to PR page');
+        startInjection();
+      }
+    }, 1000);
   }
 
   setTimeout(start, 800);
