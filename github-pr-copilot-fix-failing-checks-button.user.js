@@ -2,7 +2,7 @@
 // @name         GitHub PR Copilot fix failing checks button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.1.6
+// @version      0.1.7
 // @license     MIT
 // @description  Adds a button near Merge/Auto-merge controls. On click: collects failing check run/job URLs and posts a comment to @copilot.
 // @match        https://github.com/*/*/pull/*
@@ -21,14 +21,19 @@
   const NS = '[COPILOT-FIX-CI]';
 
   // Anchor text variants (merge box button text differs by repo/settings)
+  // Matched via prefix so that e.g. "Enable auto-merge (squash)" is caught.
   const MERGE_TEXTS = [
     'Merge pull request',
     'Enable auto-merge',
-    'Enable auto-merge…',
     'Auto-merge',
     'Squash and merge',
     'Disable auto-merge',
   ];
+
+  function isMergeText(text) {
+    const t = (text || '').trim();
+    return MERGE_TEXTS.some(m => t === m || t.startsWith(m + ' ') || t.startsWith(m + '\u2026') || t.startsWith(m + '('));
+  }
 
   const log = (...a) => DEBUG && console.log(NS, ...a);
 
@@ -97,7 +102,7 @@
     const nodes = Array.from(document.querySelectorAll('button, span, div'));
     for (const n of nodes) {
       const t = (n.textContent || '').trim();
-      if (MERGE_TEXTS.includes(t)) return n;
+      if (isMergeText(t)) return n;
     }
     return null;
   }
@@ -108,7 +113,7 @@
     );
     for (const span of textSpans) {
       const t = (span.textContent || '').trim();
-      if (!MERGE_TEXTS.includes(t)) continue;
+      if (!isMergeText(t)) continue;
       const button = span.closest('button');
       const group = button?.closest('div[class*="ButtonGroup"], .prc-ButtonGroup-ButtonGroup-vFUrY');
       if (group) return { group, labelNode: span };
@@ -117,7 +122,7 @@
     const buttons = Array.from(document.querySelectorAll('button'));
     for (const button of buttons) {
       const t = (button.textContent || '').trim();
-      if (!MERGE_TEXTS.includes(t)) continue;
+      if (!isMergeText(t)) continue;
       const group = button.closest('div[class*="ButtonGroup"], .prc-ButtonGroup-ButtonGroup-vFUrY');
       if (group) return { group, labelNode: button };
     }

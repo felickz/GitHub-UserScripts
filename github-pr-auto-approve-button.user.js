@@ -2,7 +2,7 @@
 // @name         GitHub PR Auto Approve Button
 // @author       felickz
 // @namespace    https://github.com/felickz
-// @version      0.2.8
+// @version      0.2.9
 // @license      MIT
 // @description  Adds an "AUTO-APPROVE" button next to Merge/Auto-merge controls; on click, navigates to Files changed and submits an approve review with a comment.
 // @match        https://github.com/*/*/pull/*
@@ -27,14 +27,19 @@
   const STORAGE_KEY = 'tm-auto-approve-pending';
 
   // Anchor text variants (merge box button text differs by repo/settings)
+  // Matched via prefix so that e.g. "Enable auto-merge (squash)" is caught.
   const MERGE_TEXTS = [
     'Merge pull request',
     'Enable auto-merge',
-    'Enable auto-merge…',
     'Auto-merge',
     'Squash and merge',
     'Disable auto-merge',
   ];
+
+  function isMergeText(text) {
+    const t = (text || '').trim();
+    return MERGE_TEXTS.some(m => t === m || t.startsWith(m + ' ') || t.startsWith(m + '\u2026') || t.startsWith(m + '('));
+  }
 
   const DEBUG = true;
   const NS = '[AUTO-APPROVE]';
@@ -372,7 +377,7 @@
     const nodes = Array.from(document.querySelectorAll('button, span, div'));
     for (const n of nodes) {
       const t = (n.textContent || '').trim();
-      if (MERGE_TEXTS.includes(t)) return n;
+      if (isMergeText(t)) return n;
     }
     return null;
   }
@@ -383,7 +388,7 @@
     );
     for (const span of textSpans) {
       const t = (span.textContent || '').trim();
-      if (!MERGE_TEXTS.includes(t)) continue;
+      if (!isMergeText(t)) continue;
       const button = span.closest('button');
       const group = button?.closest('div[class*="ButtonGroup"], .prc-ButtonGroup-ButtonGroup-vFUrY');
       if (group) return { group, labelNode: span };
@@ -392,7 +397,7 @@
     const buttons = Array.from(document.querySelectorAll('button'));
     for (const button of buttons) {
       const t = (button.textContent || '').trim();
-      if (!MERGE_TEXTS.includes(t)) continue;
+      if (!isMergeText(t)) continue;
       const group = button.closest('div[class*="ButtonGroup"], .prc-ButtonGroup-ButtonGroup-vFUrY');
       if (group) return { group, labelNode: button };
     }
@@ -425,7 +430,7 @@
     // Inject next to merge controls on the Conversation tab
     const { group: mergeGroup, labelNode } = findMergeControlsGroup();
     if (!mergeGroup) {
-      log('inject: merge/auto-merge label not found yet (looking for one of):', MERGE_TEXTS);
+      log('inject: merge/auto-merge label not found yet (looking for prefix match on):', MERGE_TEXTS);
       return false;
     }
 
